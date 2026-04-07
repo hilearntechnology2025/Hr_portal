@@ -1,0 +1,46 @@
+const express = require("express");
+const cors = require("cors");
+const authRoutes = require("./routes/authRoutes");
+const adminRoutes = require("./routes/adminRoutes");
+const managerRoutes = require("./routes/managerRoutes");
+const hrRoutes = require("./routes/hrRoutes");
+const callRoutes = require("./routes/callRoutes");
+const attendanceRoutes = require("./routes/attendanceRoutes");
+
+
+const app = express();
+
+// CORS - allow frontend origin
+app.use(cors({
+  origin: ["http://localhost:5173", "http://localhost:3000"],
+  credentials: true,
+}));
+
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// Health check
+app.get("/", (req, res) => {
+  res.json({ message: "Callyzer API is running ✅", version: "1.0.0" });
+});
+
+// Routes
+app.use("/api/auth", authRoutes);
+app.use("/api/admin", adminRoutes);
+app.use("/api/manager", managerRoutes);
+app.use("/api/hr", hrRoutes);
+app.use("/api/calls", callRoutes);
+app.use("/api/attendance", attendanceRoutes);
+
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({ message: "Route not found" });
+});
+
+// Global error handler
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({ message: "Internal server error" });
+});
+
+module.exports = app;
