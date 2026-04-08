@@ -1,3 +1,4 @@
+import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/Layout/Layout';
 import PrivateRoute from './components/Common/PrivateRoute';
@@ -17,6 +18,9 @@ import EmployeePunch from './pages/EmployeePunch';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminUsers from './pages/admin/AdminUsers';
 import AdminSettings from './pages/admin/AdminSettings';
+import AdminLeaves from './pages/admin/AdminLeaves';
+import AdminAttendance from './pages/admin/AdminAttendance';
+
 
 // Manager Pages
 import ManagerDashboard from './pages/manager/ManagerDashboard';
@@ -34,7 +38,24 @@ import HrProfile from './pages/hr/HrProfile';
 import EmployeeLeaves from './pages/employee/EmployeeLeaves';
 
 function App() {
-  const isAuthenticated = !!localStorage.getItem('token');
+  const [isAuthenticated, setIsAuthenticated] = React.useState(!!localStorage.getItem('token'));
+
+  // Listen for storage changes (logout from any tab or component)
+  React.useEffect(() => {
+    const handleStorageChange = () => {
+      setIsAuthenticated(!!localStorage.getItem('token'));
+    };
+
+    // Custom event for same-tab logout
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('authChange', handleStorageChange);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('authChange', handleStorageChange);
+    };
+  }, []);
+
 
   return (
     <Router>
@@ -78,6 +99,8 @@ function App() {
               <Route path="/admin" element={<AdminDashboard />} />
               <Route path="/admin/users" element={<AdminUsers />} />
               <Route path="/admin/settings" element={<AdminSettings />} />
+              <Route path="/admin/leaves" element={<AdminLeaves />} />
+              <Route path="/admin/attendance" element={<AdminAttendance />} />
             </Route>
           </Route>
         </Route>
