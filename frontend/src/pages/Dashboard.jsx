@@ -385,6 +385,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import CallCharts from '../components/Charts/CallCharts';
+import { useOutletContext } from 'react-router-dom';
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
@@ -441,6 +442,8 @@ const Dashboard = () => {
     const token = localStorage.getItem('token');
     const userName = localStorage.getItem('userName') || 'User';
 
+    const { refreshTrigger } = useOutletContext() || {};
+
     const fetchDashboard = useCallback(async () => {
         setLoading(true);
         setError('');
@@ -460,7 +463,7 @@ const Dashboard = () => {
 
     useEffect(() => {
         fetchDashboard();
-    }, [fetchDashboard]);
+    }, [fetchDashboard, refreshTrigger]);
 
     if (loading) {
         return (

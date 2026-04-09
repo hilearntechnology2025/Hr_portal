@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useOutletContext } from 'react-router-dom';
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
@@ -142,6 +143,7 @@ const ActivityItem = ({ user, action, time }) => (
 
 // ── Main Component ─────────────────────────────────────────
 export default function AdminDashboard() {
+  const { refreshTrigger } = useOutletContext() || {};
   const [stats, setStats] = useState(null);
   const [recentUsers, setRecentUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -162,7 +164,7 @@ export default function AdminDashboard() {
       finally { setLoading(false); }
     };
     fetchAll();
-  }, []);
+  }, [refreshTrigger]);
 
   const roleCounts = stats?.roleCounts || {};
   const donutSegments = Object.entries(ROLE_CONFIG)

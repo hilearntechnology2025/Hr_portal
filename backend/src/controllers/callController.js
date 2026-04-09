@@ -1,4 +1,6 @@
 const CallLog = require("../models/CallLog");
+const { emitNewCall } = require('../socket');
+
 
 // ── Helper: convert duration seconds to "Xm Ys" format ──
 const formatDuration = (seconds) => {
@@ -88,6 +90,66 @@ exports.getCallLogs = async (req, res) => {
 // ─────────────────────────────────────────────────────────
 // POST /api/calls
 // ─────────────────────────────────────────────────────────
+// exports.createCallLog = async (req, res) => {
+//     try {
+//         const {
+//             customerName,
+//             customerNumber,
+//             callType,
+//             callStatus,
+//             durationSeconds,
+//             notes,
+//             calledAt,
+//         } = req.body;
+
+//         console.log("Creating call log for user:", req.user._id, req.user.name);
+
+//         if (!customerNumber) {
+//             return res.status(400).json({ message: "Phone number is required" });
+//         }
+//         if (!callType || !["Incoming", "Outgoing"].includes(callType)) {
+//             return res.status(400).json({ message: "Valid call type required: Incoming or Outgoing" });
+//         }
+
+//         const callLog = await CallLog.create({
+//             agent: req.user._id,
+//             customerName: customerName || "",
+//             customerNumber,
+//             callType,
+//             callStatus: callStatus || "Connected",
+//             durationSeconds: Number(durationSeconds) || 0,
+//             notes: notes || "",
+//             calledAt: calledAt ? new Date(calledAt) : new Date(),
+//         });
+
+//         res.status(201).json({
+//             message: "Call log saved successfully ✅",
+//             call: {
+//                 _id: callLog._id,
+//                 customerName: callLog.customerName || "Unknown",
+//                 customerNumber: callLog.customerNumber,
+//                 callType: callLog.callType,
+//                 callStatus: callLog.callStatus,
+//                 durationSeconds: callLog.durationSeconds,
+//                 calledAt: callLog.calledAt,
+//                 notes: callLog.notes,
+//             },
+//         });
+//     } catch (err) {
+//         console.error("createCallLog error:", err);
+//         if (err.name === "ValidationError") {
+//             return res.status(400).json({
+//                 message: "Validation failed",
+//                 errors: Object.values(err.errors).map(e => e.message)
+//             });
+//         }
+//         res.status(500).json({ message: "Failed to save call log" });
+//     }
+// };
+
+// ─────────────────────────────────────────────────────────
+// POST /api/calls (Modified with Socket.io)
+// ─────────────────────────────────────────────────────────
 exports.createCallLog = async (req, res) => {
     try {
         const {
@@ -120,6 +182,31 @@ exports.createCallLog = async (req, res) => {
             calledAt: calledAt ? new Date(calledAt) : new Date(),
         });
 
+        // Populate agent details for real-time notification
+        const populatedCall = await CallLog.findById(callLog._id)
+            .populate("agent", "name email role");
+
+        // ── NEW: Emit real-time event ──────────────────────────
+        const callData = {
+            _id: populatedCall._id,
+            customerName: populatedCall.customerName || "Unknown",
+            customerNumber: populatedCall.customerNumber,
+            callType: populatedCall.callType,
+            callStatus: populatedCall.callStatus,
+            durationSeconds: populatedCall.durationSeconds,
+            duration: formatDurationForSocket(populatedCall.durationSeconds),
+            calledAt: populatedCall.calledAt,
+            timeAgo: getTimeAgo(populatedCall.calledAt),
+            agent: {
+                id: populatedCall.agent._id,
+                name: populatedCall.agent.name,
+                role: populatedCall.agent.role
+            }
+        };
+
+        // Broadcast to all admins and managers
+        emitNewCall(callData, req.user._id, req.user.role);
+
         res.status(201).json({
             message: "Call log saved successfully ✅",
             call: {
@@ -144,6 +231,27 @@ exports.createCallLog = async (req, res) => {
         res.status(500).json({ message: "Failed to save call log" });
     }
 };
+
+// Helper functions for socket
+function formatDurationForSocket(seconds) {
+    if (!seconds || seconds === 0) return "0s";
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    if (mins === 0) return `${secs}s`;
+    return secs === 0 ? `${mins}m` : `${mins}m ${secs}s`;
+}
+
+function getTimeAgo(date) {
+    const now = new Date();
+    const diffMs = now - new Date(date);
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+    
+    if (diffMins < 1) return "Just now";
+    if (diffMins < 60) return `${diffMins} min ago`;
+    if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+    return new Date(date).toLocaleDateString();
+}
 
 // ─────────────────────────────────────────────────────────
 // PUT /api/calls/:id

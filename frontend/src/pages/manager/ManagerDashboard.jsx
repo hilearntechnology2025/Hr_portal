@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useOutletContext } from 'react-router-dom';
 
 const ROLE_COLORS = {
     agent: 'bg-green-100 text-green-700',
@@ -20,6 +21,7 @@ const StatCard = ({ label, value, icon, color, subtitle }) => (
 );
 
 const ManagerDashboard = () => {
+    const { refreshTrigger } = useOutletContext() || {};
     const [stats, setStats] = useState(null);
     const [recentMembers, setRecentMembers] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -32,7 +34,7 @@ const ManagerDashboard = () => {
 
     useEffect(() => {
         fetchData();
-    }, []);
+    }, [refreshTrigger]);
 
     const fetchData = async () => {
         try {

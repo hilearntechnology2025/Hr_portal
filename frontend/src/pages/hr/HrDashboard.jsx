@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useOutletContext } from 'react-router-dom';
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
@@ -38,6 +39,7 @@ const LeaveBadge = ({ status }) => {
 };
 
 const HrDashboard = () => {
+    const { refreshTrigger } = useOutletContext() || {};
     const [stats, setStats] = useState(null);
     const [recentEmployees, setRecentEmployees] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -48,7 +50,7 @@ const HrDashboard = () => {
     const hrName = localStorage.getItem('userName') || 'HR';
     const headers = { Authorization: `Bearer ${token}` };
 
-    useEffect(() => { fetchData(); }, []);
+    useEffect(() => { fetchData(); }, [refreshTrigger]);
 
     const fetchData = async () => {
         try {
