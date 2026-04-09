@@ -386,6 +386,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import CallCharts from '../components/Charts/CallCharts';
 import { useOutletContext } from 'react-router-dom';
+import { useSocket } from '../hooks/useSocket';
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
@@ -438,11 +439,12 @@ const Dashboard = () => {
     const [loading, setLoading] = useState(true);
     const [dashboardData, setDashboardData] = useState(null);
     const [error, setError] = useState('');
-    
+
     const token = localStorage.getItem('token');
     const userName = localStorage.getItem('userName') || 'User';
 
     const { refreshTrigger } = useOutletContext() || {};
+    const { socket } = useSocket();
 
     const fetchDashboard = useCallback(async () => {
         setLoading(true);
@@ -461,9 +463,20 @@ const Dashboard = () => {
         }
     }, [token]);
 
+    // useEffect(() => {
+    //     fetchDashboard();
+    // }, [fetchDashboard, refreshTrigger]);
     useEffect(() => {
-        fetchDashboard();
-    }, [fetchDashboard, refreshTrigger]);
+        if (!socket) return;
+
+        // Naya call aaya to dashboard refresh ho
+        socket.on('new-call', () => {
+            fetchDashboard();
+        });
+
+        return () => socket.off('new-call');
+    }, [socket, fetchDashboard]);
+
 
     if (loading) {
         return (
@@ -489,7 +502,7 @@ const Dashboard = () => {
     }
 
     const { summary, weeklyTrend, recentCalls, topAgents, user } = dashboardData || {};
-    
+
     // Prepare summary cards data
     const summaryCards = summary ? [
         {
@@ -549,7 +562,7 @@ const Dashboard = () => {
 
             {/* Middle Row: Chart + Top Agents */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                
+
                 {/* Weekly Bar Chart */}
                 <div className="lg:col-span-2 bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
                     <div className="flex items-center justify-between mb-5">
@@ -563,7 +576,7 @@ const Dashboard = () => {
                             <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-rose-400"></span> Missed</span>
                         </div>
                     </div>
-                    
+
                     {weeklyTrend && weeklyTrend.length > 0 ? (
                         <div className="flex items-end justify-between gap-2 h-36">
                             {weeklyTrend.map((d, i) => (

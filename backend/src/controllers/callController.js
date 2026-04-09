@@ -28,7 +28,22 @@ exports.getCallLogs = async (req, res) => {
             sortDir = "desc",
         } = req.query;
 
-        const query = { agent: req.user._id };
+        // const query = { agent: req.user._id };
+        const userRole = req.user.role;
+        const query = {};
+
+        // Admin/super_admin — sab calls dekhe
+        // Manager — sab calls dekhe (ya optional agentId filter se)
+        // Baaki — sirf apne calls
+        if (["admin", "super_admin"].includes(userRole)) {
+            if (req.query.agentId) query.agent = req.query.agentId;
+            // koi filter nahi — sab dikhega
+        } else if (userRole === "manager") {
+            if (req.query.agentId) query.agent = req.query.agentId;
+            // manager bhi sab dekh sakta hai by default
+        } else {
+            query.agent = req.user._id;  // Agent sirf apne calls
+        }
 
         if (search.trim()) {
             query.$or = [
@@ -246,7 +261,7 @@ function getTimeAgo(date) {
     const diffMs = now - new Date(date);
     const diffMins = Math.floor(diffMs / 60000);
     const diffHours = Math.floor(diffMins / 60);
-    
+
     if (diffMins < 1) return "Just now";
     if (diffMins < 60) return `${diffMins} min ago`;
     if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;

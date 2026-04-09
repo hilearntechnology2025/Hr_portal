@@ -493,10 +493,6 @@
 
 
 
-
-
-
-
 import { useState, useEffect, useCallback } from 'react';
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -576,7 +572,7 @@ const Reports = () => {
     const [loading, setLoading] = useState(true);
     const [reportData, setReportData] = useState(null);
     const [error, setError] = useState('');
-    
+
     const token = localStorage.getItem('token');
     const periods = ['today', 'yesterday', 'week', 'month', 'quarter'];
 
@@ -643,9 +639,17 @@ const Reports = () => {
         );
     }
 
-    const { summaryCards, monthlySummary, weeklyTrend, callDistribution, agentPerformance } = reportData || {};
+    // Default values to prevent null errors
+    const {
+        summaryCards = [],
+        monthlySummary = [],
+        weeklyTrend = [],
+        callDistribution = [],
+        agentPerformance = []
+    } = reportData || {};
+
     const TOTAL_PIE = callDistribution?.reduce((s, d) => s + d.value, 0) || 1;
-    
+
     // Add percent to callDistribution for tooltip
     const pieDataWithPercent = callDistribution?.map(d => ({
         ...d,
@@ -665,8 +669,8 @@ const Reports = () => {
                     {/* Period Selector */}
                     <div className="flex items-center gap-1 bg-gray-100 rounded-xl p-1">
                         {periods.map((p) => (
-                            <button 
-                                key={p} 
+                            <button
+                                key={p}
                                 onClick={() => setPeriod(p)}
                                 className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 whitespace-nowrap
                                     ${period === p ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>
@@ -728,14 +732,14 @@ const Reports = () => {
                                         </svg>
                                     )}
                                 </div>
-                                <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-full ${card.up ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
-                                    {card.up ? '↑' : '↓'} {card.change}
+                                <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-full ${card?.up ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
+                                    {card?.up ? '↑' : '↓'} {card?.change || '0%'}
                                 </span>
                             </div>
-                            <p className="text-3xl font-bold text-gray-800 mb-1">{card.value}</p>
-                            <p className="text-sm font-medium text-gray-500">{card.title}</p>
+                            <p className="text-3xl font-bold text-gray-800 mb-1">{card?.value || 0}</p>
+                            <p className="text-sm font-medium text-gray-500">{card?.title || 'N/A'}</p>
                             <div className="mt-3 pt-3 border-t border-gray-100">
-                                <p className="text-xs text-gray-400">{card.change} vs last period</p>
+                                <p className="text-xs text-gray-400">{card?.change || '0%'} vs last period</p>
                             </div>
                             <div className={`mt-2 h-1 rounded-full ${i === 0 ? 'bg-blue-500' : i === 1 ? 'bg-emerald-500' : i === 2 ? 'bg-rose-500' : 'bg-violet-500'} opacity-20`}></div>
                             <div className={`-mt-1 h-1 rounded-full ${i === 0 ? 'bg-blue-500' : i === 1 ? 'bg-emerald-500' : i === 2 ? 'bg-rose-500' : 'bg-violet-500'} w-3/4`}></div>

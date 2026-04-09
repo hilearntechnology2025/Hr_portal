@@ -7,13 +7,19 @@ const userSchema = new mongoose.Schema(
     password: { type: String, required: true, minlength: 6 },
     role: {
       type: String,
-      enum: ["agent", "team_leader", "manager", "admin", "super_admin", "hr", "finance", "employee"], 
+      enum: ["agent", "team_leader", "manager", "admin", "super_admin", "hr", "finance", "employee"],
       default: "agent",
     },
     isActive: { type: Boolean, default: true },
     phone: { type: String, default: "" },
     avatar: { type: String, default: "" },
     lastLogin: { type: Date },
+    // User.js mein — lastLogin ke baad add karo:
+    managerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,   // Koi manager assign nahi hai to null
+    },
   },
   { timestamps: true }
 );

@@ -66,7 +66,11 @@ exports.getTeamMembers = async (req, res) => {
         // Manager can only manage these roles
         const allowedRoles = ["agent", "team_leader"];
 
-        const filter = { role: { $in: allowedRoles } };
+        // const filter = { role: { $in: allowedRoles } };
+        const filter = {
+            role: { $in: allowedRoles },
+            managerId: req.user._id   // ✅ Sirf is manager ke agents
+        };
 
         // Role filter (agent or team_leader)
         if (role && allowedRoles.includes(role)) {
