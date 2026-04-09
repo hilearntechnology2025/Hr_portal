@@ -6,6 +6,8 @@ const managerRoutes = require("./routes/managerRoutes");
 const hrRoutes = require("./routes/hrRoutes");
 const callRoutes = require("./routes/callRoutes");
 const attendanceRoutes = require("./routes/attendanceRoutes");
+const dashboardRoutes = require("./routes/dashboardRoutes");
+const reportsRoutes = require("./routes/reportsRoutes");
 
 
 const app = express();
@@ -43,6 +45,9 @@ app.use("/api/manager", managerRoutes);
 app.use("/api/hr", hrRoutes);
 app.use("/api/calls", callRoutes);
 app.use("/api/attendance", attendanceRoutes);
+
+app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/reports", reportsRoutes);
 
 // 404 handler
 app.use((req, res) => {
