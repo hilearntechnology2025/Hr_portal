@@ -286,6 +286,7 @@ const Login = () => {
             localStorage.setItem('userEmail', user.email);
             localStorage.setItem('userId', user.id);
             localStorage.setItem('userRole', user.role);
+            window.dispatchEvent(new Event('authChange'));
 
             // ── Role-based redirect ───────────────────────────────
             if (user.role === 'manager') {

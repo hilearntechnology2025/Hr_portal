@@ -605,12 +605,46 @@ const Reports = () => {
         fetchReports();
     }, [fetchReports]);
 
+    // const handleDownload = async (format = 'csv') => {
+    //     setDownloading(true);
+    //     try {
+    //         window.open(`${API}/reports/export?format=${format}&range=${period}`, '_blank');
+    //     } catch (err) {
+    //         console.error('Download failed:', err);
+    //     } finally {
+    //         setTimeout(() => setDownloading(false), 1000);
+    //     }
+    // };
     const handleDownload = async (format = 'csv') => {
         setDownloading(true);
         try {
-            window.open(`${API}/reports/export?format=${format}&range=${period}`, '_blank');
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${API}/reports/export?format=${format}&range=${period}`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error('Download failed');
+            }
+
+            // Get blob from response
+            const blob = await response.blob();
+
+            // Create download link
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `callyzer-report-${period}-${Date.now()}.${format === 'csv' ? 'csv' : 'json'}`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+
         } catch (err) {
             console.error('Download failed:', err);
+            showToast('❌ Download failed. Please try again.', 'error');
         } finally {
             setTimeout(() => setDownloading(false), 1000);
         }

@@ -61,7 +61,8 @@ function App() {
     <Router>
       <Routes>
         {/* Public Routes */}
-        <Route path="/login" element={!isAuthenticated ? <Login /> : <Navigate to="/dashboard" />} />
+        {/* <Route path="/login" element={!isAuthenticated ? <Login /> : <Navigate to="/dashboard" />} /> */}
+        <Route path="/login" element={<Login />} />
         <Route path="/signup" element={!isAuthenticated ? <Signup /> : <Navigate to="/dashboard" />} />
 
         {/* Protected Routes with Layout */}
@@ -105,7 +106,8 @@ function App() {
           </Route>
         </Route>
 
-        <Route path="/" element={<Navigate to="/login" />} />
+        {/* <Route path="/" element={<Navigate to="/login" />} /> */}
+        <Route path="/" element={<Login />} />
         <Route path="*" element={<Navigate to="/login" />} />
       </Routes>
     </Router>

@@ -416,6 +416,56 @@ exports.getReports = async (req, res) => {
 // GET /api/reports/export
 // Export report as CSV/JSON
 // ──────────────────────────────────────────────────────────────
+// exports.exportReport = async (req, res) => {
+//     try {
+//         const { format = "csv", range, startDate, endDate, agentId } = req.query;
+//         const userId = req.user._id;
+//         const userRole = req.user.role;
+
+//         // Build filters
+//         let dateFilter = {};
+//         const dateRange = getDateRange(range, startDate, endDate);
+//         if (dateRange) dateFilter.calledAt = dateRange;
+
+//         let agentFilter = {};
+//         // if (["admin", "super_admin"].includes(userRole) && agentId) {
+//         //     agentFilter.agent = agentId;
+//         // } else {
+//         //     agentFilter.agent = userId;
+//         // }
+
+//         if (["admin", "super_admin", "manager"].includes(userRole)) {
+//             if (agentId) agentFilter.agent = agentId;
+//             // agentId nahi diya to koi filter nahi — sab agents ke calls dikhenge
+//         } else {
+//             agentFilter.agent = userId;
+//         }
+
+//         const finalFilter = { ...dateFilter, ...agentFilter };
+
+//         // Get all calls for export
+//         const calls = await CallLog.find(finalFilter)
+//             .sort({ calledAt: -1 })
+//             .populate("agent", "name email")
+//             .lean();
+
+//         if (format === "csv") {
+//             const csvData = convertToCSV(calls);
+//             res.setHeader("Content-Type", "text/csv");
+//             res.setHeader("Content-Disposition", `attachment; filename=callyzer-report-${Date.now()}.csv`);
+//             return res.send(csvData);
+//         }
+
+//         // JSON format
+//         const summary = await getSummaryCards(finalFilter);
+//         res.json({ summary, calls, total: calls.length });
+
+//     } catch (err) {
+//         console.error("exportReport error:", err);
+//         res.status(500).json({ message: "Server error" });
+//     }
+// };
+
 exports.exportReport = async (req, res) => {
     try {
         const { format = "csv", range, startDate, endDate, agentId } = req.query;
@@ -428,15 +478,8 @@ exports.exportReport = async (req, res) => {
         if (dateRange) dateFilter.calledAt = dateRange;
 
         let agentFilter = {};
-        // if (["admin", "super_admin"].includes(userRole) && agentId) {
-        //     agentFilter.agent = agentId;
-        // } else {
-        //     agentFilter.agent = userId;
-        // }
-
         if (["admin", "super_admin", "manager"].includes(userRole)) {
             if (agentId) agentFilter.agent = agentId;
-            // agentId nahi diya to koi filter nahi — sab agents ke calls dikhenge
         } else {
             agentFilter.agent = userId;
         }
@@ -451,8 +494,11 @@ exports.exportReport = async (req, res) => {
 
         if (format === "csv") {
             const csvData = convertToCSV(calls);
-            res.setHeader("Content-Type", "text/csv");
+            
+            // ✅ CRITICAL: Set correct headers for CSV download
+            res.setHeader("Content-Type", "text/csv; charset=utf-8");
             res.setHeader("Content-Disposition", `attachment; filename=callyzer-report-${Date.now()}.csv`);
+            res.setHeader("Cache-Control", "no-cache");
             return res.send(csvData);
         }
 

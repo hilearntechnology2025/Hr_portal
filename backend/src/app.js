@@ -16,6 +16,7 @@ const app = express();
 const allowedOrigins = [
   "http://localhost:5173",
   "http://localhost:3000",
+  "http://localhost:5174",
   process.env.FRONTEND_URL, // Vercel URL yahan aayega
 ];
 
@@ -28,6 +29,7 @@ app.use(cors({
     }
   },
   credentials: true,
+  exposedHeaders: ['Content-Disposition'],
 }));
 
 app.use(express.json());
