@@ -86,6 +86,9 @@ exports.getCallLogs = async (req, res) => {
             calledAt: c.calledAt,
             notes: c.notes,
             agent: c.agent,
+            disposition: c.disposition || "",           // ✅ ADD THIS
+            followUpDate: c.followUpDate || null,       // ✅ ADD THIS
+            followUpNotes: c.followUpNotes || "",
         }));
 
         res.json({
@@ -195,6 +198,9 @@ exports.createCallLog = async (req, res) => {
             durationSeconds: Number(durationSeconds) || 0,
             notes: notes || "",
             calledAt: calledAt ? new Date(calledAt) : new Date(),
+            disposition: req.body.disposition || "",           // ✅ ADD THIS
+            followUpDate: req.body.followUpDate ? new Date(req.body.followUpDate) : null,  // ✅ ADD THIS
+            followUpNotes: req.body.followUpNotes || "",
         });
 
         // Populate agent details for real-time notification
@@ -280,7 +286,7 @@ exports.updateCallLog = async (req, res) => {
 
         if (!call) return res.status(404).json({ message: "Call log not found" });
 
-        const allowed = ["notes", "customerName", "callType", "callStatus", "durationSeconds", "calledAt"];
+        const allowed = ["notes", "customerName", "callType", "callStatus", "durationSeconds", "calledAt", "disposition", "followUpDate", "followUpNotes"];
         allowed.forEach((field) => {
             if (req.body[field] !== undefined) call[field] = req.body[field];
         });
@@ -344,5 +350,41 @@ exports.getCallStats = async (req, res) => {
     } catch (err) {
         console.error("getCallStats error:", err);
         res.status(500).json({ message: "Failed to load stats" });
+    }
+};
+
+exports.bulkImportCalls = async (req, res) => {
+    try {
+        const calls = req.body.calls; // Array of call objects
+
+        if (!calls || !calls.length) {
+            return res.status(400).json({ message: "No calls data provided" });
+        }
+
+        const createdCalls = [];
+        for (const call of calls) {
+            const newCall = await CallLog.create({
+                agent: req.user._id,
+                customerName: call.customerName || "Unknown",
+                customerNumber: call.customerNumber,
+                callType: call.callType || "Outgoing",
+                callStatus: call.callStatus || "Connected",
+                durationSeconds: Number(call.durationSeconds) || 0,
+                calledAt: call.calledAt ? new Date(call.calledAt) : new Date(),
+                notes: call.notes || "",
+                disposition: call.disposition || "",
+                followUpDate: call.followUpDate ? new Date(call.followUpDate) : null,
+                followUpNotes: call.followUpNotes || ""
+            });
+            createdCalls.push(newCall);
+        }
+
+        res.json({
+            message: `Successfully imported ${createdCalls.length} calls`,
+            count: createdCalls.length
+        });
+    } catch (err) {
+        console.error("bulkImport error:", err);
+        res.status(500).json({ message: "Import failed" });
     }
 };

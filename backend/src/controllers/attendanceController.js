@@ -144,3 +144,40 @@ exports.getAllAttendance = async (req, res) => {
         res.status(500).json({ message: "Server error" });
     }
 };
+
+
+// Add at the end of file
+exports.exportAttendance = async (req, res) => {
+    try {
+        const { month, employeeId } = req.query;
+        const query = {};
+        
+        if (month) query.date = { $gte: `${month}-01`, $lte: `${month}-31` };
+        if (employeeId) query.employee = employeeId;
+        
+        const records = await Attendance.find(query)
+            .populate("employee", "name email role")
+            .sort({ date: -1 });
+        
+        // Convert to CSV
+        const headers = ["Date", "Employee Name", "Email", "Role", "Punch In", "Punch Out", "Hours Worked", "Status"];
+        const rows = records.map(r => [
+            r.date,
+            r.employee?.name || "Unknown",
+            r.employee?.email || "",
+            r.employee?.role || "",
+            r.punchIn?.time ? new Date(r.punchIn.time).toLocaleTimeString() : "-",
+            r.punchOut?.time ? new Date(r.punchOut.time).toLocaleTimeString() : "-",
+            r.hoursWorked || 0,
+            r.status
+        ]);
+        
+        const csv = [headers, ...rows].map(row => row.join(",")).join("\n");
+        
+        res.setHeader("Content-Type", "text/csv; charset=utf-8");
+        res.setHeader("Content-Disposition", `attachment; filename=attendance-${month || "all"}.csv`);
+        res.send(csv);
+    } catch (err) {
+        res.status(500).json({ message: "Server error" });
+    }
+};

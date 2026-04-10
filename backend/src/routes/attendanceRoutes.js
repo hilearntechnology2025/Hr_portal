@@ -5,6 +5,7 @@ const {
     getTodayStatus,
     getMyHistory,
     getAllAttendance,
+    exportAttendance
 } = require("../controllers/attendanceController");
 
 const protect = require("../middlewares/authMiddleware");
@@ -20,6 +21,7 @@ router.post("/punch-in", punchIn);
 router.post("/punch-out", punchOut);
 router.get("/today", getTodayStatus);
 router.get("/history", getMyHistory);
+router.get("/export", protect, hrOnly, exportAttendance);
 
 // ── HR-only: view all attendance ─────────────────────────────
 router.get("/all", hrOnly, getAllAttendance);

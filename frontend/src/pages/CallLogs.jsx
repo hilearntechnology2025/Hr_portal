@@ -716,6 +716,9 @@ const CallModal = ({ log, onClose, onDone }) => {
         durationSeconds: log.durationSeconds || '', // use "durationSeconds" as per backend model
         calledAt: toLocalDT(log.calledAt),
         notes: log.notes || '',
+        disposition: log.disposition || '',
+        followUpDate: log.followUpDate || '',
+        followUpNotes: log.followUpNotes || '',
     } : {
         customerName: '',
         customerNumber: '',        // ✅
@@ -724,6 +727,9 @@ const CallModal = ({ log, onClose, onDone }) => {
         durationSeconds: '',       // ✅
         calledAt: toLocalDT(new Date()),
         notes: '',
+        disposition: '',
+        followUpDate: '',
+        followUpNotes: '',
     });
 
     const [saving, setSaving] = useState(false);
@@ -755,6 +761,9 @@ const CallModal = ({ log, onClose, onDone }) => {
                 durationSeconds: Number(form.durationSeconds) || 0,  // ✅
                 calledAt: form.calledAt,
                 notes: form.notes,
+                disposition: form.disposition,           // ✅ ADD THIS
+                followUpDate: form.followUpDate,         // ✅ ADD THIS
+                followUpNotes: form.followUpNotes,
             };
 
             const res = await fetch(url, { method, headers, body: JSON.stringify(body) });
@@ -771,8 +780,8 @@ const CallModal = ({ log, onClose, onDone }) => {
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-            <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg z-10 overflow-hidden">
-                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+            <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg z-10 overflow-hidden flex flex-col max-h-[90vh]">
+                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
                     <h3 className="text-lg font-bold text-gray-800">{isEdit ? 'Edit Call Log' : 'Add Call Log'}</h3>
                     <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -780,7 +789,7 @@ const CallModal = ({ log, onClose, onDone }) => {
                         </svg>
                     </button>
                 </div>
-                <div className="px-6 py-5 space-y-4">
+                <div className="px-6 py-5 space-y-4 overflow-y-auto flex-1">
                     {error && (
                         <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-red-600 text-sm">
                             {error}
@@ -805,6 +814,7 @@ const CallModal = ({ log, onClose, onDone }) => {
                                 <option>Outgoing</option>
                             </select>
                         </ModalField>
+
                         <ModalField label="Call Status">
                             <select className={`${inp} bg-white`} value={form.callStatus}
                                 onChange={e => set('callStatus', e.target.value)}>
@@ -812,6 +822,29 @@ const CallModal = ({ log, onClose, onDone }) => {
                                 <option>Missed</option>
                                 <option>Rejected</option>
                             </select>
+                        </ModalField>
+                        {/* // After callStatus field, add: */}
+                        <ModalField label="Call Disposition">
+                            <select className={`${inp} bg-white`} value={form.disposition || ""}
+                                onChange={e => set('disposition', e.target.value)}>
+                                <option value="">-- Select --</option>
+                                <option value="Interested">✅ Interested</option>
+                                <option value="Not Interested">❌ Not Interested</option>
+                                <option value="Callback">📞 Callback</option>
+                                <option value="Sale Done">💰 Sale Done</option>
+                                <option value="Wrong Number">🔢 Wrong Number</option>
+                                <option value="Follow-up">⏰ Follow-up</option>
+                            </select>
+                        </ModalField>
+
+                        <ModalField label="Follow-up Date">
+                            <input type="datetime-local" className={inp} value={form.followUpDate || ""}
+                                onChange={e => set('followUpDate', e.target.value)} />
+                        </ModalField>
+
+                        <ModalField label="Follow-up Notes">
+                            <textarea className={`${inp} resize-none`} rows={2} value={form.followUpNotes || ""}
+                                onChange={e => set('followUpNotes', e.target.value)} />
                         </ModalField>
                         {/* field: durationSeconds */}
                         <ModalField label="Duration (seconds)">
@@ -918,6 +951,13 @@ const CallLogs = () => {
     const [editLog, setEditLog] = useState(null);
     const [deleteLog, setDeleteLog] = useState(null);
 
+    const [showImport, setShowImport] = useState(false);
+    const [importData, setImportData] = useState('');
+    const [importing, setImporting] = useState(false);
+
+    const [agents, setAgents] = useState([]);
+    const [selectedAgent, setSelectedAgent] = useState('');
+
     const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 3000); };
 
     // Backend returns data.logs and data.pagination
@@ -935,6 +975,7 @@ const CallLogs = () => {
             if (statusFilter !== 'All') params.set('callStatus', statusFilter);
             if (dateFrom) params.set('dateFrom', dateFrom);
             if (dateTo) params.set('dateTo', dateTo);
+            if (selectedAgent) params.set('agentId', selectedAgent);
 
             const res = await fetch(`${API}/calls?${params}`, { headers });
             const data = await res.json();
@@ -947,7 +988,7 @@ const CallLogs = () => {
         } finally {
             setLoading(false);
         }
-    }, [page, search, typeFilter, statusFilter, dateFrom, dateTo, sortField, sortDir]);
+    }, [page, search, typeFilter, statusFilter, dateFrom, dateTo, sortField, sortDir, selectedAgent]);
 
     const fetchStats = useCallback(async () => {
         try {
@@ -959,6 +1000,21 @@ const CallLogs = () => {
             setStats(data);
         } catch { }
     }, [dateFrom, dateTo]);
+
+    useEffect(() => {
+        if (isAdmin) {
+            const fetchAgents = async () => {
+                try {
+                    const res = await fetch(`${API}/admin/users?role=agent&limit=100`, { headers });
+                    const data = await res.json();
+                    setAgents(data.users || []);
+                } catch (err) {
+                    console.error("Failed to fetch agents:", err);
+                }
+            };
+            fetchAgents();
+        }
+    }, [isAdmin]);
 
     useEffect(() => { fetchLogs(); }, [fetchLogs]);
     useEffect(() => { fetchStats(); }, [fetchStats]);
@@ -990,6 +1046,104 @@ const CallLogs = () => {
 
     const thCls = "text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer select-none hover:text-gray-700";
 
+    // const handleBulkImport = async () => {
+    //     setImporting(true);
+    //     try {
+    //         const rows = importData.split('\n').slice(1); // Skip header
+    //         const calls = rows.filter(row => row.trim()).map(row => {
+    //             const [customerName, customerNumber, callType, callStatus, durationSeconds, calledAt, notes] = row.split(',');
+    //             return { customerName, customerNumber, callType, callStatus, durationSeconds, calledAt, notes };
+    //         });
+
+
+
+    //         const res = await fetch(`${API}/calls/bulk-import`, {
+    //             method: 'POST',
+    //             headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+    //             body: JSON.stringify({ calls })
+    //         });
+    //         const data = await res.json();
+    //         showToast(data.message);
+    //         setShowImport(false);
+    //         fetchLogs();
+    //         fetchStats();
+    //     } catch (err) {
+    //         showToast('Import failed', 'error');
+    //     } finally {
+    //         setImporting(false);
+    //     }
+    // };
+
+    const handleBulkImport = async () => {
+        setImporting(true);
+        try {
+            const rows = importData.split('\n').slice(1); // Skip header
+            const calls = rows.filter(row => row.trim()).map(row => {
+                const [customerName, customerNumber, callType, callStatus, durationSeconds, calledAt, notes] = row.split(',');
+
+                // ✅ Format data correctly
+                let formattedCallType = callType?.trim() || 'Outgoing';
+                if (formattedCallType.toLowerCase() === 'incoming') formattedCallType = 'Incoming';
+                if (formattedCallType.toLowerCase() === 'outgoing') formattedCallType = 'Outgoing';
+
+                let formattedStatus = callStatus?.trim() || 'Connected';
+                if (formattedStatus.toLowerCase() === 'connected') formattedStatus = 'Connected';
+                if (formattedStatus.toLowerCase() === 'missed') formattedStatus = 'Missed';
+                if (formattedStatus.toLowerCase() === 'rejected') formattedStatus = 'Rejected';
+
+                // ✅ Parse date properly
+                let formattedDate = null;
+                if (calledAt && calledAt.trim()) {
+                    formattedDate = new Date(calledAt.trim());
+                    if (isNaN(formattedDate.getTime())) {
+                        formattedDate = new Date(); // fallback to current date
+                    }
+                }
+
+                return {
+                    customerName: customerName?.trim() || 'Unknown',
+                    customerNumber: customerNumber?.trim() || '',
+                    callType: formattedCallType,
+                    callStatus: formattedStatus,
+                    durationSeconds: parseInt(durationSeconds) || 0,
+                    calledAt: formattedDate,
+                    notes: notes?.trim() || ''
+                };
+            });
+
+            // Filter out invalid calls (without phone number)
+            const validCalls = calls.filter(call => call.customerNumber);
+
+            if (validCalls.length === 0) {
+                showToast('No valid calls to import. Please check phone numbers.', 'error');
+                setImporting(false);
+                return;
+            }
+
+            const res = await fetch(`${API}/calls/bulk-import`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ calls: validCalls })
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                showToast(data.message || 'Import failed', 'error');
+            } else {
+                showToast(data.message);
+                setShowImport(false);
+                setImportData('');
+                fetchLogs();
+                fetchStats();
+            }
+        } catch (err) {
+            console.error('Import error:', err);
+            showToast('Import failed: ' + err.message, 'error');
+        } finally {
+            setImporting(false);
+        }
+    };
+
+
     return (
         <div className="space-y-6">
             {toast && (
@@ -1006,10 +1160,16 @@ const CallLogs = () => {
                         {pagination.total} total calls
                     </p>
                 </div>
-                <button onClick={() => setShowAdd(true)}
-                    className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition-colors">
-                    + Add Call
-                </button>
+                <div className="flex items-center gap-3">
+                    <button onClick={() => setShowAdd(true)}
+                        className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition-colors">
+                        + Add Call
+                    </button>
+                    <button onClick={() => setShowImport(true)}
+                        className="flex items-center gap-2 px-5 py-2.5 border border-gray-200 hover:bg-gray-50 text-gray-700 text-sm font-semibold rounded-xl transition-colors">
+                        📥 Bulk Import
+                    </button>
+                </div>
             </div>
 
             {/* Stats Row */}
@@ -1046,6 +1206,19 @@ const CallLogs = () => {
                         <option value="Missed">Missed</option>
                         <option value="Rejected">Rejected</option>
                     </select>
+                    {isAdmin && agents.length > 0 && (
+                        <select
+                            value={selectedAgent}
+                            onChange={e => { setSelectedAgent(e.target.value); setPage(1); }}
+                            className="border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
+                        >
+                            <option value="">All Agents</option>
+                            {agents.map(agent => (
+                                <option key={agent._id} value={agent._id}>{agent.name}</option>
+                            ))}
+                        </select>
+                    )}
+
                 </div>
                 <div className="flex flex-wrap gap-2 items-center">
                     {[
@@ -1104,6 +1277,7 @@ const CallLogs = () => {
                                     </th>
                                     {isAdmin && <th className={`${thCls} cursor-default`}>Agent</th>}
                                     <th className={`${thCls} cursor-default`}>Actions</th>
+                                    <th className={thCls}>Disposition</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-50">
@@ -1147,6 +1321,19 @@ const CallLogs = () => {
                                                 )}
                                             </div>
                                         </td>
+
+                                        <td className="px-5 py-3.5">
+                                            <span className={`text-xs px-2 py-1 rounded-full ${log.disposition === 'Interested' ? 'bg-green-100 text-green-700' :
+                                                log.disposition === 'Not Interested' ? 'bg-red-100 text-red-600' :
+                                                    log.disposition === 'Sale Done' ? 'bg-purple-100 text-purple-700' :
+                                                        log.disposition === 'Callback' ? 'bg-yellow-100 text-yellow-700' :
+                                                            log.disposition === 'Wrong Number' ? 'bg-gray-100 text-gray-600' :
+                                                                log.disposition === 'Follow-up' ? 'bg-blue-100 text-blue-600' :
+                                                                    'bg-gray-100 text-gray-400'
+                                                }`}>
+                                                {log.disposition || '—'}
+                                            </span>
+                                        </td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -1179,6 +1366,31 @@ const CallLogs = () => {
                             className="px-4 py-2 border border-gray-200 rounded-xl text-sm disabled:opacity-40 hover:bg-gray-50">
                             Next →
                         </button>
+                    </div>
+                </div>
+            )}
+
+            {showImport && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+                    <div className="bg-white rounded-2xl p-6 w-full max-w-2xl">
+                        <h3 className="text-lg font-bold mb-4">Bulk Import Calls</h3>
+                        <p className="text-sm text-gray-500 mb-3">CSV Format: customerName,customerNumber,callType,callStatus,durationSeconds,calledAt,notes</p>
+                        <textarea
+                            className="w-full h-64 border rounded-xl p-3 font-mono text-sm"
+                            value={importData}
+                            onChange={e => setImportData(e.target.value)}
+                            // placeholder="customerName,customerNumber,callType,callStatus,durationSeconds,calledAt,notes&#10;Rahul,9876543210,Outgoing,Connected,120,2024-01-15T10:30:00,Follow up"
+                            placeholder={`Example (first line is header, will be skipped):
+customerName,customerNumber,callType,callStatus,durationSeconds,calledAt,notes
+Rahul,9876543210,Outgoing,Connected,120,2026-04-10T10:30:00,Follow up
+Shani,9601930581,Incoming,Connected,60,2026-04-10T11:00:00,Interested`}
+                        />
+                        <div className="flex gap-3 mt-4">
+                            <button onClick={handleBulkImport} disabled={importing} className="flex-1 bg-blue-600 text-white py-2 rounded-xl">
+                                {importing ? 'Importing...' : 'Import'}
+                            </button>
+                            <button onClick={() => setShowImport(false)} className="flex-1 border py-2 rounded-xl">Cancel</button>
+                        </div>
                     </div>
                 </div>
             )}

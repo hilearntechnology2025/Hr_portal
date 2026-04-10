@@ -148,6 +148,25 @@ const AdminAttendance = () => {
                     >
                         {[2023, 2024, 2025, 2026].map(y => <option key={y} value={y}>{y}</option>)}
                     </select>
+                    
+                    <button
+                        onClick={async () => {
+                            const token = localStorage.getItem('token');
+                            const res = await fetch(`${API}/attendance/export?month=${year}-${String(month).padStart(2, '0')}${selectedEmp ? `&employeeId=${selectedEmp._id}` : ''}`, {
+                                headers: { 'Authorization': `Bearer ${token}` }
+                            });
+                            const blob = await res.blob();
+                            const url = window.URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = `attendance-${year}-${month}.csv`;
+                            a.click();
+                            window.URL.revokeObjectURL(url);
+                        }}
+                        className="px-4 py-2 bg-green-600 text-white rounded-xl text-sm"
+                    >
+                        📥 Export CSV
+                    </button>
                 </div>
             </div>
 

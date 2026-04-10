@@ -36,6 +36,14 @@ const callLogSchema = new mongoose.Schema(
 
         // Optional notes
         notes: { type: String, default: "" },
+        disposition: {
+            type: String,
+            enum: ["", "Interested", "Not Interested", "Callback", "Sale Done", "Wrong Number", "Follow-up"],
+            default: ""
+        },
+        followUpDate: { type: Date, default: null },
+        followUpNotes: { type: String, default: "" },
+
     },
     { timestamps: true }
 );

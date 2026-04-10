@@ -166,6 +166,7 @@ exports.createTeamMember = async (req, res) => {
             password: hashedPassword,
             role: role || "agent",
             phone: phone || "",
+            managerId: req.user._id,
         });
 
         res.status(201).json({
