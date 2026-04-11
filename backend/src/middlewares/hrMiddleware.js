@@ -1,4 +1,3 @@
-
 const User = require("../models/User");
 
 // ── Allows HR and above roles (admin, super_admin) ────────────

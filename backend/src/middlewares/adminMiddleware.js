@@ -1,4 +1,3 @@
-
 const adminOnly = async (req, res, next) => {
   try {
     const user = req.user;

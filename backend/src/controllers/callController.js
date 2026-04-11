@@ -33,9 +33,7 @@ exports.getCallLogs = async (req, res) => {
         const userRole = req.user.role;
         const query = {};
 
-        // Admin/super_admin — sab calls dekhe
-        // Manager — sab calls dekhe (ya optional agentId filter se)
-        // Baaki — sirf apne calls
+        
         if (["admin", "super_admin"].includes(userRole)) {
             if (req.query.agentId) query.agent = req.query.agentId;
             // koi filter nahi — sab dikhega
@@ -53,7 +51,7 @@ exports.getCallLogs = async (req, res) => {
                 query.agent = { $in: teamIds };
             }
         } else {
-            query.agent = req.user._id;  // Agent sirf apne calls
+            query.agent = req.user._id;  
         }
 
         if (search.trim()) {
@@ -97,8 +95,8 @@ exports.getCallLogs = async (req, res) => {
             calledAt: c.calledAt,
             notes: c.notes,
             agent: c.agent,
-            disposition: c.disposition || "",           // ✅ ADD THIS
-            followUpDate: c.followUpDate || null,       // ✅ ADD THIS
+            disposition: c.disposition || "",           
+            followUpDate: c.followUpDate || null,       
             followUpNotes: c.followUpNotes || "",
         }));
 
@@ -115,66 +113,6 @@ exports.getCallLogs = async (req, res) => {
         res.status(500).json({ message: "Server error" });
     }
 };
-
-// ─────────────────────────────────────────────────────────
-// POST /api/calls
-// ─────────────────────────────────────────────────────────
-// exports.createCallLog = async (req, res) => {
-//     try {
-//         const {
-//             customerName,
-//             customerNumber,
-//             callType,
-//             callStatus,
-//             durationSeconds,
-//             notes,
-//             calledAt,
-//         } = req.body;
-
-//         console.log("Creating call log for user:", req.user._id, req.user.name);
-
-//         if (!customerNumber) {
-//             return res.status(400).json({ message: "Phone number is required" });
-//         }
-//         if (!callType || !["Incoming", "Outgoing"].includes(callType)) {
-//             return res.status(400).json({ message: "Valid call type required: Incoming or Outgoing" });
-//         }
-
-//         const callLog = await CallLog.create({
-//             agent: req.user._id,
-//             customerName: customerName || "",
-//             customerNumber,
-//             callType,
-//             callStatus: callStatus || "Connected",
-//             durationSeconds: Number(durationSeconds) || 0,
-//             notes: notes || "",
-//             calledAt: calledAt ? new Date(calledAt) : new Date(),
-//         });
-
-//         res.status(201).json({
-//             message: "Call log saved successfully ✅",
-//             call: {
-//                 _id: callLog._id,
-//                 customerName: callLog.customerName || "Unknown",
-//                 customerNumber: callLog.customerNumber,
-//                 callType: callLog.callType,
-//                 callStatus: callLog.callStatus,
-//                 durationSeconds: callLog.durationSeconds,
-//                 calledAt: callLog.calledAt,
-//                 notes: callLog.notes,
-//             },
-//         });
-//     } catch (err) {
-//         console.error("createCallLog error:", err);
-//         if (err.name === "ValidationError") {
-//             return res.status(400).json({
-//                 message: "Validation failed",
-//                 errors: Object.values(err.errors).map(e => e.message)
-//             });
-//         }
-//         res.status(500).json({ message: "Failed to save call log" });
-//     }
-// };
 
 // ─────────────────────────────────────────────────────────
 // POST /api/calls (Modified with Socket.io)
@@ -310,59 +248,7 @@ exports.updateCallLog = async (req, res) => {
     }
 };
 
-// ─────────────────────────────────────────────────────────
-// DELETE /api/calls/:id
-// ─────────────────────────────────────────────────────────
-exports.deleteCallLog = async (req, res) => {
-    try {
-        const call = await CallLog.findOneAndDelete({
-            _id: req.params.id,
-            agent: req.user._id,
-        });
-        if (!call) return res.status(404).json({ message: "Call log not found" });
-        res.json({ message: "Call log deleted successfully" });
-    } catch (err) {
-        console.error("deleteCallLog error:", err);
-        res.status(500).json({ message: "Failed to delete call log" });
-    }
-};
 
-// ─────────────────────────────────────────────────────────
-// GET /api/calls/stats
-// ─────────────────────────────────────────────────────────
-// exports.getCallStats = async (req, res) => {
-//     try {
-//         const agentId = req.user._id;
-
-//         const today = new Date();
-//         today.setHours(0, 0, 0, 0);
-
-//         const [total, todayCalls, connected, missed, incoming, outgoing] =
-//             await Promise.all([
-//                 CallLog.countDocuments({ agent: agentId }),
-//                 CallLog.countDocuments({ agent: agentId, calledAt: { $gte: today } }),
-//                 CallLog.countDocuments({ agent: agentId, callStatus: "Connected" }),
-//                 CallLog.countDocuments({ agent: agentId, callStatus: "Missed" }),
-//                 CallLog.countDocuments({ agent: agentId, callType: "Incoming" }),
-//                 CallLog.countDocuments({ agent: agentId, callType: "Outgoing" }),
-//             ]);
-
-//         const connectRate = total > 0 ? Math.round((connected / total) * 100) : 0;
-
-//         res.json({
-//             total,
-//             todayCalls,
-//             connected,
-//             missed,
-//             incoming,
-//             outgoing,
-//             connectRate,
-//         });
-//     } catch (err) {
-//         console.error("getCallStats error:", err);
-//         res.status(500).json({ message: "Failed to load stats" });
-//     }
-// };
 
 // ─────────────────────────────────────────────────────────
 // GET /api/calls/stats
@@ -376,18 +262,18 @@ exports.getCallStats = async (req, res) => {
         
         // ── Role-based filter for stats ─────────────────────
         if (["admin", "super_admin"].includes(userRole)) {
-            // Admin: agar agentId query mein diya hai toh uske stats, warna SAB agents ke stats
+            
             if (req.query.agentId) {
                 agentFilter.agent = req.query.agentId;
             }
-            // else: koi filter nahi → sab calls ke stats (empty filter)
+            
         } 
         else if (userRole === "manager") {
-            // Manager: agar agentId diya hai toh us agent ke stats
+            
             if (req.query.agentId) {
                 agentFilter.agent = req.query.agentId;
             } else {
-                // AgentId nahi diya → manager ki team ke SAB agents ke stats
+                
                 const teamMembers = await User.find({ 
                     managerId: userId,
                     role: { $in: ["agent", "team_leader"] }
@@ -410,7 +296,7 @@ exports.getCallStats = async (req, res) => {
             }
         } 
         else {
-            // Agent: sirf apne calls ke stats
+            
             agentFilter.agent = userId;
         }
 

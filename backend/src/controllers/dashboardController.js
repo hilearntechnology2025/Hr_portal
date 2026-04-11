@@ -1,179 +1,10 @@
 const CallLog = require("../models/CallLog");
 const User = require("../models/User");
-// const User = require("../models/User");
 
 // ──────────────────────────────────────────────────────────────
 // GET /api/dashboard/stats
 // Get all dashboard data for logged-in user (agent/employee)
 // ──────────────────────────────────────────────────────────────
-// exports.getDashboardStats = async (req, res) => {
-//     try {
-//         const userId = req.user._id;
-//         const today = new Date();
-//         today.setHours(0, 0, 0, 0);
-
-//         const sevenDaysAgo = new Date();
-//         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-
-//         const thirtyDaysAgo = new Date();
-//         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-//         // ── Summary Stats ─────────────────────────────────────
-//         const totalCalls = await CallLog.countDocuments({ agent: userId });
-//         const todayCalls = await CallLog.countDocuments({ 
-//             agent: userId, 
-//             calledAt: { $gte: today } 
-//         });
-
-//         const incomingCalls = await CallLog.countDocuments({ 
-//             agent: userId, 
-//             callType: "Incoming" 
-//         });
-
-//         const outgoingCalls = await CallLog.countDocuments({ 
-//             agent: userId, 
-//             callType: "Outgoing" 
-//         });
-
-//         const missedCalls = await CallLog.countDocuments({ 
-//             agent: userId, 
-//             callStatus: "Missed" 
-//         });
-
-//         const connectedCalls = await CallLog.countDocuments({ 
-//             agent: userId, 
-//             callStatus: "Connected" 
-//         });
-
-//         // Average duration
-//         const avgDurationAgg = await CallLog.aggregate([
-//             { $match: { agent: userId, durationSeconds: { $gt: 0 } } },
-//             { $group: { _id: null, avgDuration: { $avg: "$durationSeconds" } } }
-//         ]);
-//         const avgDurationSeconds = avgDurationAgg[0]?.avgDuration || 0;
-//         const avgDurationFormatted = formatDuration(avgDurationSeconds);
-
-//         // Connect rate
-//         const connectRate = totalCalls > 0 
-//             ? Math.round((connectedCalls / totalCalls) * 100) 
-//             : 0;
-
-//         // ── Weekly Trend (last 7 days) ────────────────────────
-//         const weeklyTrend = [];
-//         for (let i = 6; i >= 0; i--) {
-//             const date = new Date();
-//             date.setDate(date.getDate() - i);
-//             date.setHours(0, 0, 0, 0);
-
-//             const nextDate = new Date(date);
-//             nextDate.setDate(nextDate.getDate() + 1);
-
-//             const dayCalls = await CallLog.countDocuments({
-//                 agent: userId,
-//                 calledAt: { $gte: date, $lt: nextDate }
-//             });
-
-//             const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-//             weeklyTrend.push({
-//                 day: dayNames[date.getDay()],
-//                 total: dayCalls,
-//                 incoming: await CallLog.countDocuments({
-//                     agent: userId,
-//                     callType: "Incoming",
-//                     calledAt: { $gte: date, $lt: nextDate }
-//                 }),
-//                 outgoing: await CallLog.countDocuments({
-//                     agent: userId,
-//                     callType: "Outgoing",
-//                     calledAt: { $gte: date, $lt: nextDate }
-//                 }),
-//                 missed: await CallLog.countDocuments({
-//                     agent: userId,
-//                     callStatus: "Missed",
-//                     calledAt: { $gte: date, $lt: nextDate }
-//                 })
-//             });
-//         }
-
-//         // ── Recent Calls (last 10) ───────────────────────────
-//         const recentCalls = await CallLog.find({ agent: userId })
-//             .sort({ calledAt: -1 })
-//             .limit(10)
-//             .populate("agent", "name email")
-//             .lean();
-
-//         const formattedRecentCalls = recentCalls.map(call => ({
-//             _id: call._id,
-//             name: call.customerName || "Unknown",
-//             number: call.customerNumber,
-//             type: call.callType,
-//             duration: formatDuration(call.durationSeconds),
-//             status: call.callStatus,
-//             time: formatTime(call.calledAt),
-//             avatar: getInitials(call.customerName || "U")
-//         }));
-
-//         // ── Top Agents (if admin/manager) ─────────────────────
-//         let topAgents = [];
-//         const userRole = req.user.role;
-
-//         if (["admin", "super_admin", "manager"].includes(userRole)) {
-//             // Get agents with most connected calls
-//             const agentStats = await CallLog.aggregate([
-//                 { $match: { callStatus: "Connected" } },
-//                 { $group: {
-//                     _id: "$agent",
-//                     connectedCalls: { $sum: 1 }
-//                 }},
-//                 { $sort: { connectedCalls: -1 } },
-//                 { $limit: 5 }
-//             ]);
-
-//             const agentIds = agentStats.map(s => s._id);
-//             const agents = await User.find({ _id: { $in: agentIds } })
-//                 .select("name email role");
-
-//             topAgents = agents.map(agent => {
-//                 const stats = agentStats.find(s => s._id.toString() === agent._id.toString());
-//                 return {
-//                     name: agent.name,
-//                     calls: stats?.connectedCalls || 0,
-//                     connected: stats?.connectedCalls || 0,
-//                     avatar: getInitials(agent.name),
-//                     color: getAvatarColor(agent._id)
-//                 };
-//             });
-//         }
-
-//         // ── Response ─────────────────────────────────────────
-//         res.json({
-//             success: true,
-//             summary: {
-//                 totalCalls,
-//                 todayCalls,
-//                 incomingCalls,
-//                 outgoingCalls,
-//                 missedCalls,
-//                 connectedCalls,
-//                 avgDuration: avgDurationFormatted,
-//                 avgDurationSeconds,
-//                 connectRate
-//             },
-//             weeklyTrend,
-//             recentCalls: formattedRecentCalls,
-//             topAgents,
-//             user: {
-//                 name: req.user.name,
-//                 role: req.user.role
-//             }
-//         });
-
-//     } catch (err) {
-//         console.error("getDashboardStats error:", err);
-//         res.status(500).json({ message: "Server error" });
-//     }
-// };
-
 exports.getDashboardStats = async (req, res) => {
     try {
         const userId = req.user._id;
@@ -189,13 +20,13 @@ exports.getDashboardStats = async (req, res) => {
         let agentFilter = {};
 
         if (["admin", "super_admin"].includes(userRole)) {
-            // Admin: sab agents ke calls
+           
             if (req.query.agentId) {
                 agentFilter.agent = req.query.agentId;
             }
         }
         else if (userRole === "manager") {
-            // Manager: team ke agents ke calls
+            
             if (req.query.agentId) {
                 agentFilter.agent = req.query.agentId;
             } else {
@@ -210,7 +41,7 @@ exports.getDashboardStats = async (req, res) => {
             }
         }
         else {
-            // Agent: sirf apne calls
+           
             agentFilter.agent = userId;
         }
 
@@ -302,53 +133,6 @@ exports.getDashboardStats = async (req, res) => {
             avatar: getInitials(call.customerName || "U")
         }));
 
-        // ── Top Agents (for admin/manager) ─────────────────────
-        // let topAgents = [];
-
-        // if (["admin", "super_admin", "manager"].includes(userRole)) {
-        //     // Get all agents under this admin/manager
-        //     let agentIds = [];
-
-        //     if (userRole === "manager") {
-        //         const teamMembers = await User.find({ 
-        //             managerId: userId,
-        //             role: { $in: ["agent", "team_leader"] }
-        //         }).select("_id name");
-        //         agentIds = teamMembers;
-        //     } else {
-        //         const allAgents = await User.find({ 
-        //             role: { $in: ["agent", "team_leader"] }
-        //         }).select("_id name");
-        //         agentIds = allAgents;
-        //     }
-
-        //     // Calculate performance for each agent
-        //     const agentPerformance = [];
-        //     for (const agent of agentIds) {
-        //         const agentCallFilter = { agent: agent._id };
-
-        //         const total = await CallLog.countDocuments(agentCallFilter);
-        //         const connected = await CallLog.countDocuments({ ...agentCallFilter, callStatus: "Connected" });
-
-        //         const rate = total > 0 ? Math.round((connected / total) * 100) : 0;
-
-        //         agentPerformance.push({
-        //             _id: agent._id,
-        //             name: agent.name,
-        //             calls: total,
-        //             connected: connected,
-        //             rate: rate,
-        //             avatar: getInitials(agent.name),
-        //             color: getAvatarColor(agent._id)
-        //         });
-        //     }
-
-        //     // Sort by connected calls and take top 5
-        //     topAgents = agentPerformance
-        //         .sort((a, b) => b.connected - a.connected)
-        //         .slice(0, 5);
-        // }
-
         // ── Top Agents (for admin/manager/team-leader) ─────────────────────
         let topAgents = [];
 
@@ -357,7 +141,7 @@ exports.getDashboardStats = async (req, res) => {
             let agentIds = [];
 
             if (userRole === "manager") {
-                // Manager: sirf apne team ke agents
+               
                 const teamMembers = await User.find({
                     managerId: userId,
                     role: { $in: ["agent", "team_leader"] }
@@ -365,7 +149,7 @@ exports.getDashboardStats = async (req, res) => {
                 agentIds = teamMembers;
             }
             else if (userRole === "team_leader") {
-                // Team Leader: sirf apne under ke agents (if any)
+                
                 const teamMembers = await User.find({
                     teamLeaderId: userId,
                     role: "agent"
@@ -373,7 +157,7 @@ exports.getDashboardStats = async (req, res) => {
                 agentIds = teamMembers;
             }
             else {
-                // Admin / Super Admin: saare agents
+                
                 const allAgents = await User.find({
                     role: { $in: ["agent", "team_leader"] }
                 }).select("_id name");

@@ -1,4 +1,3 @@
-
 const managerOnly = async (req, res, next) => {
     try {
         const user = req.user; // full object from authMiddleware

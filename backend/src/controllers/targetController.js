@@ -126,58 +126,6 @@ exports.getMyProgress = async (req, res) => {
 // Get Team Progress (Manager/Admin)
 // GET /api/targets/team-progress
 // ─────────────────────────────────────────────────────────
-// exports.getTeamProgress = async (req, res) => {
-//     try {
-//         const userRole = req.user.role;
-//         let query = {};
-        
-//         if (userRole === "manager") {
-//             query.managerId = req.user._id;
-//         } else if (["admin", "super_admin"].includes(userRole)) {
-//             query.role = { $in: ["agent", "team_leader"] };
-//         } else {
-//             return res.status(403).json({ message: "Access denied" });
-//         }
-        
-//         const agents = await User.find(query).select("_id name email role");
-//         const now = new Date();
-//         const year = now.getFullYear();
-//         const month = now.getMonth() + 1;
-//         const monthStart = new Date(year, month - 1, 1);
-//         const monthEnd = new Date(year, month, 0);
-        
-//         const teamProgress = [];
-        
-//         for (const agent of agents) {
-//             const target = await Target.findOne({
-//                 agent: agent._id,
-//                 period: "monthly",
-//                 year,
-//                 month
-//             });
-            
-//             const monthCalls = await CallLog.countDocuments({
-//                 agent: agent._id,
-//                 calledAt: { $gte: monthStart, $lte: monthEnd }
-//             });
-            
-//             teamProgress.push({
-//                 agentId: agent._id,
-//                 name: agent.name,
-//                 role: agent.role,
-//                 target: target?.targetCalls || 0,
-//                 achieved: monthCalls,
-//                 percentage: target?.targetCalls ? Math.round((monthCalls / target.targetCalls) * 100) : 0
-//             });
-//         }
-        
-//         res.json({ teamProgress });
-//     } catch (err) {
-//         console.error("getTeamProgress error:", err);
-//         res.status(500).json({ message: "Server error" });
-//     }
-// };
-
 exports.getTeamProgress = async (req, res) => {
     try {
         const userRole = req.user.role;
