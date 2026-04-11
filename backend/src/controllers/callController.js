@@ -1,5 +1,6 @@
 const CallLog = require("../models/CallLog");
 const { emitNewCall } = require('../socket');
+const User = require("../models/User");
 
 
 // ── Helper: convert duration seconds to "Xm Ys" format ──
@@ -39,8 +40,18 @@ exports.getCallLogs = async (req, res) => {
             if (req.query.agentId) query.agent = req.query.agentId;
             // koi filter nahi — sab dikhega
         } else if (userRole === "manager") {
-            if (req.query.agentId) query.agent = req.query.agentId;
-            // manager bhi sab dekh sakta hai by default
+            // Manager: agar agentId diya hai toh us agent ke calls
+            if (req.query.agentId) {
+                query.agent = req.query.agentId;
+            } else {
+                // ✅ AgentId nahi diya toh manager ki team ke SAB agents ke calls
+                const teamMembers = await User.find({
+                    managerId: req.user._id,
+                    role: { $in: ["agent", "team_leader"] }
+                }).select("_id");
+                const teamIds = teamMembers.map(m => m._id);
+                query.agent = { $in: teamIds };
+            }
         } else {
             query.agent = req.user._id;  // Agent sirf apne calls
         }
@@ -319,21 +330,101 @@ exports.deleteCallLog = async (req, res) => {
 // ─────────────────────────────────────────────────────────
 // GET /api/calls/stats
 // ─────────────────────────────────────────────────────────
+// exports.getCallStats = async (req, res) => {
+//     try {
+//         const agentId = req.user._id;
+
+//         const today = new Date();
+//         today.setHours(0, 0, 0, 0);
+
+//         const [total, todayCalls, connected, missed, incoming, outgoing] =
+//             await Promise.all([
+//                 CallLog.countDocuments({ agent: agentId }),
+//                 CallLog.countDocuments({ agent: agentId, calledAt: { $gte: today } }),
+//                 CallLog.countDocuments({ agent: agentId, callStatus: "Connected" }),
+//                 CallLog.countDocuments({ agent: agentId, callStatus: "Missed" }),
+//                 CallLog.countDocuments({ agent: agentId, callType: "Incoming" }),
+//                 CallLog.countDocuments({ agent: agentId, callType: "Outgoing" }),
+//             ]);
+
+//         const connectRate = total > 0 ? Math.round((connected / total) * 100) : 0;
+
+//         res.json({
+//             total,
+//             todayCalls,
+//             connected,
+//             missed,
+//             incoming,
+//             outgoing,
+//             connectRate,
+//         });
+//     } catch (err) {
+//         console.error("getCallStats error:", err);
+//         res.status(500).json({ message: "Failed to load stats" });
+//     }
+// };
+
+// ─────────────────────────────────────────────────────────
+// GET /api/calls/stats
+// ─────────────────────────────────────────────────────────
 exports.getCallStats = async (req, res) => {
     try {
-        const agentId = req.user._id;
+        const userRole = req.user.role;
+        const userId = req.user._id;
+        
+        let agentFilter = {};
+        
+        // ── Role-based filter for stats ─────────────────────
+        if (["admin", "super_admin"].includes(userRole)) {
+            // Admin: agar agentId query mein diya hai toh uske stats, warna SAB agents ke stats
+            if (req.query.agentId) {
+                agentFilter.agent = req.query.agentId;
+            }
+            // else: koi filter nahi → sab calls ke stats (empty filter)
+        } 
+        else if (userRole === "manager") {
+            // Manager: agar agentId diya hai toh us agent ke stats
+            if (req.query.agentId) {
+                agentFilter.agent = req.query.agentId;
+            } else {
+                // AgentId nahi diya → manager ki team ke SAB agents ke stats
+                const teamMembers = await User.find({ 
+                    managerId: userId,
+                    role: { $in: ["agent", "team_leader"] }
+                }).select("_id");
+                const teamIds = teamMembers.map(m => m._id);
+                if (teamIds.length > 0) {
+                    agentFilter.agent = { $in: teamIds };
+                } else {
+                    // No team members → return zeros
+                    return res.json({
+                        total: 0,
+                        todayCalls: 0,
+                        connected: 0,
+                        missed: 0,
+                        incoming: 0,
+                        outgoing: 0,
+                        connectRate: 0,
+                    });
+                }
+            }
+        } 
+        else {
+            // Agent: sirf apne calls ke stats
+            agentFilter.agent = userId;
+        }
 
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
         const [total, todayCalls, connected, missed, incoming, outgoing] =
             await Promise.all([
-                CallLog.countDocuments({ agent: agentId }),
-                CallLog.countDocuments({ agent: agentId, calledAt: { $gte: today } }),
-                CallLog.countDocuments({ agent: agentId, callStatus: "Connected" }),
-                CallLog.countDocuments({ agent: agentId, callStatus: "Missed" }),
-                CallLog.countDocuments({ agent: agentId, callType: "Incoming" }),
-                CallLog.countDocuments({ agent: agentId, callType: "Outgoing" }),
+                CallLog.countDocuments(agentFilter),
+                CallLog.countDocuments({ ...agentFilter, calledAt: { $gte: today } }),
+                CallLog.countDocuments({ ...agentFilter, callStatus: "Connected" }),
+                CallLog.countDocuments({ ...agentFilter, callStatus: "Missed" }),
+                CallLog.countDocuments({ ...agentFilter, callType: "Incoming" }),
+                CallLog.countDocuments({ ...agentFilter, callType: "Outgoing" }),
             ]);
 
         const connectRate = total > 0 ? Math.round((connected / total) * 100) : 0;

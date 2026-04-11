@@ -8,6 +8,7 @@ const callRoutes = require("./routes/callRoutes");
 const attendanceRoutes = require("./routes/attendanceRoutes");
 const dashboardRoutes = require("./routes/dashboardRoutes");
 const reportsRoutes = require("./routes/reportsRoutes");
+const targetRoutes = require("./routes/targetRoutes");
 
 
 const app = express();
@@ -50,6 +51,7 @@ app.use("/api/attendance", attendanceRoutes);
 
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/reports", reportsRoutes);
+app.use("/api/targets", targetRoutes);
 
 // 404 handler
 app.use((req, res) => {

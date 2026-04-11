@@ -26,6 +26,7 @@ import AdminAttendance from './pages/admin/AdminAttendance';
 import ManagerDashboard from './pages/manager/ManagerDashboard';
 import ManagerTeam from './pages/manager/ManagerTeam';
 import ManagerProfile from './pages/manager/ManagerProfile';
+import ManagerTargets from './pages/manager/ManagerTargets';
 
 // HR Pages 
 import HrDashboard from './pages/hr/HrDashboard';
@@ -84,6 +85,7 @@ function App() {
               <Route path="/manager" element={<ManagerDashboard />} />
               <Route path="/manager/team" element={<ManagerTeam />} />
               <Route path="/manager/profile" element={<ManagerProfile />} />
+              <Route path="/manager/targets" element={<ManagerTargets />} />
             </Route>
 
             {/* HR-Only Routes ←  */}

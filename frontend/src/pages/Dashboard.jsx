@@ -441,10 +441,28 @@ const Dashboard = () => {
     const [error, setError] = useState('');
 
     const token = localStorage.getItem('token');
+    const headers = { Authorization: `Bearer ${token}` };
     const userName = localStorage.getItem('userName') || 'User';
 
     const { refreshTrigger } = useOutletContext() || {};
     const { socket } = useSocket();
+
+    // Add with other states
+    const [progress, setProgress] = useState({ daily: { target: 0, achieved: 0, percentage: 0 }, monthly: { target: 0, achieved: 0, percentage: 0 } });
+
+    // Add this useEffect
+    useEffect(() => {
+        const fetchProgress = async () => {
+            try {
+                const res = await fetch(`${API}/targets/my-progress`, { headers });
+                const data = await res.json();
+                setProgress(data);
+            } catch (err) {
+                console.error("Failed to fetch progress:", err);
+            }
+        };
+        fetchProgress();
+    }, [refreshTrigger]);
 
     const fetchDashboard = useCallback(async () => {
         setLoading(true);
@@ -463,9 +481,9 @@ const Dashboard = () => {
         }
     }, [token]);
 
-    // useEffect(() => {
-    //     fetchDashboard();
-    // }, [fetchDashboard, refreshTrigger]);
+    useEffect(() => {
+        fetchDashboard();
+    }, [fetchDashboard, refreshTrigger]);
     useEffect(() => {
         if (!socket) return;
 
@@ -646,6 +664,43 @@ const Dashboard = () => {
                             </div>
                         </div>
                     )}
+                </div>
+            </div>
+
+            {/* Progress Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Daily Progress */}
+                <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+                    <div className="flex items-center justify-between mb-3">
+                        <div>
+                            <p className="text-sm text-gray-500 font-medium">Today's Target</p>
+                            <p className="text-2xl font-bold text-gray-800">{progress.daily.achieved} / {progress.daily.target}</p>
+                        </div>
+                        <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+                            <span className="text-xl">🎯</span>
+                        </div>
+                    </div>
+                    <div className="w-full bg-gray-100 rounded-full h-2.5">
+                        <div className="bg-blue-600 h-2.5 rounded-full transition-all duration-500" style={{ width: `${Math.min(progress.daily.percentage, 100)}%` }}></div>
+                    </div>
+                    <p className="text-xs text-gray-400 mt-2">{progress.daily.percentage}% completed</p>
+                </div>
+
+                {/* Monthly Progress */}
+                <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+                    <div className="flex items-center justify-between mb-3">
+                        <div>
+                            <p className="text-sm text-gray-500 font-medium">Monthly Target</p>
+                            <p className="text-2xl font-bold text-gray-800">{progress.monthly.achieved} / {progress.monthly.target}</p>
+                        </div>
+                        <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
+                            <span className="text-xl">📊</span>
+                        </div>
+                    </div>
+                    <div className="w-full bg-gray-100 rounded-full h-2.5">
+                        <div className="bg-purple-600 h-2.5 rounded-full transition-all duration-500" style={{ width: `${Math.min(progress.monthly.percentage, 100)}%` }}></div>
+                    </div>
+                    <p className="text-xs text-gray-400 mt-2">{progress.monthly.percentage}% completed</p>
                 </div>
             </div>
 

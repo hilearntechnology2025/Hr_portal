@@ -1016,6 +1016,21 @@ const CallLogs = () => {
         }
     }, [isAdmin]);
 
+    useEffect(() => {
+        if (userRole === 'manager') {
+            const fetchTeamMembers = async () => {
+                try {
+                    const res = await fetch(`${API}/manager/team?limit=100`, { headers });
+                    const data = await res.json();
+                    setAgents(data.members || []);
+                } catch (err) {
+                    console.error("Failed to fetch team members:", err);
+                }
+            };
+            fetchTeamMembers();
+        }
+    }, [userRole]);
+
     useEffect(() => { fetchLogs(); }, [fetchLogs]);
     useEffect(() => { fetchStats(); }, [fetchStats]);
 
@@ -1206,13 +1221,25 @@ const CallLogs = () => {
                         <option value="Missed">Missed</option>
                         <option value="Rejected">Rejected</option>
                     </select>
-                    {isAdmin && agents.length > 0 && (
+                    {/* {isAdmin && agents.length > 0 && (
                         <select
                             value={selectedAgent}
                             onChange={e => { setSelectedAgent(e.target.value); setPage(1); }}
                             className="border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
                         >
                             <option value="">All Agents</option>
+                            {agents.map(agent => (
+                                <option key={agent._id} value={agent._id}>{agent.name}</option>
+                            ))}
+                        </select>
+                    )} */}
+                    {(isAdmin || userRole === 'manager') && agents.length > 0 && (
+                        <select
+                            value={selectedAgent}
+                            onChange={e => { setSelectedAgent(e.target.value); setPage(1); }}
+                            className="border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
+                        >
+                            <option value="">All Agents ({agents.length})</option>
                             {agents.map(agent => (
                                 <option key={agent._id} value={agent._id}>{agent.name}</option>
                             ))}
