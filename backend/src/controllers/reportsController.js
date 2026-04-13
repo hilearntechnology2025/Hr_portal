@@ -1,3 +1,52 @@
+const CallLog = require("../models/CallLog");
+const User = require("../models/User");
+
+exports.getReports = async (req, res) => {
+    try {
+        const { range, startDate, endDate, agentId } = req.query;
+        const userId = req.user._id;
+        const userRole = req.user.role;
+
+        let dateFilter = {};
+        const dateRange = getDateRange(range, startDate, endDate);
+        if (dateRange) dateFilter.calledAt = dateRange;
+
+        let agentFilter = {};
+        if (["admin", "super_admin"].includes(userRole)) {
+            if (agentId) agentFilter.agent = agentId;
+        } else if (userRole === "manager") {
+            if (agentId) {
+                agentFilter.agent = agentId;
+            } else {
+                const teamMembers = await User.find({
+                    managerId: userId,
+                    role: { $in: ["agent", "team_leader"] }
+                }).select("_id");
+                agentFilter.agent = { $in: teamMembers.map(m => m._id) };
+            }
+        } else {
+            agentFilter.agent = userId;
+        }
+
+        const finalFilter = { ...dateFilter, ...agentFilter };
+
+        const [summary, monthlySummary, weeklyTrend, callDistribution, agentPerformance] = await Promise.all([
+            getSummaryCards(finalFilter),
+            getMonthlySummary(finalFilter),
+            getWeeklyTrend(finalFilter),
+            getCallDistribution(finalFilter),
+            agentId
+                ? getSingleAgentPerformance(agentId, finalFilter, req.user)
+                : getAgentPerformance(finalFilter),
+        ]);
+
+        res.json({ summary, monthlySummary, weeklyTrend, callDistribution, agentPerformance });
+    } catch (err) {
+        console.error("getReports error:", err);
+        res.status(500).json({ message: "Server error" });
+    }
+};
+
 exports.exportReport = async (req, res) => {
     try {
         const { format = "csv", range, startDate, endDate, agentId } = req.query;

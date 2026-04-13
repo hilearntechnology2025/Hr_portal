@@ -330,6 +330,25 @@ exports.getCallStats = async (req, res) => {
     }
 };
 
+// ─────────────────────────────────────────────────────────
+// DELETE /api/calls/:id
+// ─────────────────────────────────────────────────────────
+exports.deleteCallLog = async (req, res) => {
+    try {
+        const call = await CallLog.findOneAndDelete({
+            _id: req.params.id,
+            agent: req.user._id,
+        });
+
+        if (!call) return res.status(404).json({ message: "Call log not found" });
+
+        res.json({ message: "Call log deleted successfully" });
+    } catch (err) {
+        console.error("deleteCallLog error:", err);
+        res.status(500).json({ message: "Failed to delete call log" });
+    }
+};
+
 exports.bulkImportCalls = async (req, res) => {
     try {
         const calls = req.body.calls; // Array of call objects
