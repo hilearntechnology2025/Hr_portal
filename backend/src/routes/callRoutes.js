@@ -5,7 +5,9 @@ const {
     updateCallLog,
     deleteCallLog,
     getCallStats,
-    bulkImportCalls
+    bulkImportCalls,
+    getPendingFollowUps,
+    getLeaderboard,
 } = require("../controllers/callController");
 
 
@@ -25,5 +27,7 @@ router.post("/", createCallLog);
 router.put("/:id", updateCallLog);
 router.delete("/:id", deleteCallLog);
 router.post("/bulk-import", bulkImportCalls);
+router.get("/follow-ups", getPendingFollowUps);
+router.get("/leaderboard", getLeaderboard);
 
 module.exports = router;

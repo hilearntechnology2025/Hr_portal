@@ -6,6 +6,7 @@ import AdminRoute from './components/Common/AdminRoute';
 import ManagerRoute from './components/Common/ManagerRoute';
 import HrRoute from './components/Common/HrRoute';
 import EmployeeRoute from './components/Common/EmployeeRoute';
+import Leaderboard from './pages/Leaderboard';
 
 import Login from './pages/Login';
 import Signup from './pages/Signup';
@@ -72,6 +73,7 @@ function App() {
             {/* Regular User Routes */}
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/call-logs" element={<CallLogs />} />
+            <Route path="/leaderboard" element={<Leaderboard />} />
             <Route path="/reports" element={<Reports />} />
             <Route path="/attendance" element={<EmployeePunch />} />
 

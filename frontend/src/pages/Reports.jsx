@@ -491,8 +491,8 @@
 
 // export default Reports;
 
-
-
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { useState, useEffect, useCallback } from 'react';
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -519,6 +519,134 @@ const BarTooltip = ({ active, payload, label }) => {
             ))}
         </div>
     );
+};
+
+// const exportPDF = (reportData, filters) => {
+//     const doc = new jsPDF();
+
+//     // Header
+//     doc.setFontSize(18);
+//     doc.setTextColor(40, 40, 40);
+//     doc.text('Call Report', 14, 20);
+
+//     // Subtitle (filters info)
+//     doc.setFontSize(10);
+//     doc.setTextColor(120, 120, 120);
+//     const dateStr = filters.from && filters.to
+//         ? `Period: ${filters.from} to ${filters.to}`
+//         : `Generated: ${new Date().toLocaleDateString('en-IN')}`;
+//     doc.text(dateStr, 14, 28);
+//     doc.text(`Total Records: ${reportData.length}`, 14, 34);
+
+//     // Table
+//     autoTable(doc, {
+//         startY: 40,
+//         head: [[
+//             '#', 'Agent', 'Customer', 'Phone',
+//             'Type', 'Status', 'Duration', 'Date', 'Disposition'
+//         ]],
+//         body: reportData.map((row, idx) => [
+//             idx + 1,
+//             row.agentName || row.agent?.name || '—',
+//             row.customerName || '—',
+//             row.customerNumber || '—',
+//             row.callType || '—',
+//             row.callStatus || '—',
+//             row.durationSeconds
+//                 ? `${Math.floor(row.durationSeconds / 60)}m ${row.durationSeconds % 60}s`
+//                 : '0s',
+//             row.calledAt
+//                 ? new Date(row.calledAt).toLocaleDateString('en-IN')
+//                 : '—',
+//             row.disposition || '—',
+//         ]),
+//         styles: { fontSize: 8, cellPadding: 3 },
+//         headStyles: { fillColor: [59, 130, 246], textColor: 255, fontStyle: 'bold' },
+//         alternateRowStyles: { fillColor: [248, 250, 252] },
+//         margin: { left: 14, right: 14 },
+//     });
+
+//     // Footer
+//     const pageCount = doc.internal.getNumberOfPages();
+//     for (let i = 1; i <= pageCount; i++) {
+//         doc.setPage(i);
+//         doc.setFontSize(8);
+//         doc.setTextColor(180, 180, 180);
+//         doc.text(
+//             `Page ${i} of ${pageCount} — Callyzer Report`,
+//             doc.internal.pageSize.getWidth() / 2,
+//             doc.internal.pageSize.getHeight() - 8,
+//             { align: 'center' }
+//         );
+//     }
+
+//     const fileName = `call-report-${new Date().toISOString().split('T')[0]}.pdf`;
+//     doc.save(fileName);
+// };
+const exportPDF = (monthlySummary, agentPerformance, filters) => {
+    const doc = new jsPDF();
+
+    // ── Title ──
+    doc.setFontSize(20);
+    doc.setTextColor(30, 30, 30);
+    doc.text('Callyzer — Call Report', 14, 22);
+
+    doc.setFontSize(10);
+    doc.setTextColor(120, 120, 120);
+    doc.text(`Period: ${filters.from}`, 14, 30);
+    doc.text(`Generated: ${new Date().toLocaleDateString('en-IN')}`, 14, 36);
+
+    // ── Section 1: Monthly Summary Table ──
+    doc.setFontSize(12);
+    doc.setTextColor(50, 50, 50);
+    doc.text('Monthly Call Summary', 14, 48);
+
+    autoTable(doc, {
+        startY: 52,
+        head: [['Month', 'Total Calls', 'Connected', 'Missed']],
+        body: monthlySummary.map(row => [
+            row.month || '—',
+            row.total ?? 0,
+            row.connected ?? 0,
+            row.missed ?? 0,
+        ]),
+        styles: { fontSize: 9, cellPadding: 3 },
+        headStyles: { fillColor: [59, 130, 246], textColor: 255, fontStyle: 'bold' },
+        alternateRowStyles: { fillColor: [248, 250, 252] },
+        margin: { left: 14, right: 14 },
+    });
+
+    // ── Section 2: Agent List ──
+    const afterTable = doc.lastAutoTable.finalY + 10;
+    doc.setFontSize(12);
+    doc.setTextColor(50, 50, 50);
+    doc.text('Agents', 14, afterTable);
+
+    autoTable(doc, {
+        startY: afterTable + 4,
+        head: [['#', 'Agent Name']],
+        body: agentPerformance.map((a, i) => [i + 1, a.name || '—']),
+        styles: { fontSize: 9, cellPadding: 3 },
+        headStyles: { fillColor: [99, 102, 241], textColor: 255, fontStyle: 'bold' },
+        alternateRowStyles: { fillColor: [248, 250, 252] },
+        margin: { left: 14, right: 14 },
+    });
+
+    // ── Footer ──
+    const pageCount = doc.internal.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.setTextColor(180, 180, 180);
+        doc.text(
+            `Page ${i} of ${pageCount} — Callyzer Report`,
+            doc.internal.pageSize.getWidth() / 2,
+            doc.internal.pageSize.getHeight() - 8,
+            { align: 'center' }
+        );
+    }
+
+    doc.save(`callyzer-report-${filters.from}-${new Date().toISOString().split('T')[0]}.pdf`);
 };
 
 const LineTooltip = ({ active, payload, label }) => {
@@ -592,6 +720,8 @@ const Reports = () => {
                 headers: { Authorization: `Bearer ${token}` }
             });
             const data = await res.json();
+            console.log("reportData keys:", Object.keys(data));
+            console.log("sample:", data);
             if (!res.ok) throw new Error(data.message || 'Failed to load reports');
             setReportData(data);
         } catch (err) {
@@ -712,6 +842,16 @@ const Reports = () => {
                             </button>
                         ))}
                     </div>
+                    {/* PDF Export Button */}
+                    <button
+                        onClick={() => exportPDF(monthlySummary,
+                            agentPerformance,
+                            { from: period, to: period }
+                        )}
+                        className="inline-flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white text-sm font-semibold px-5 py-2.5 rounded-xl transition-all shadow-sm hover:shadow-md"
+                    >
+                        📄 Export PDF
+                    </button>
                     {/* Download Button */}
                     <button
                         onClick={() => handleDownload('csv')}
@@ -903,12 +1043,21 @@ const Reports = () => {
                         <h3 className="text-base font-bold text-gray-800">Agent Performance</h3>
                         <p className="text-xs text-gray-400 mt-0.5">Individual call stats for {periodLabels[period]}</p>
                     </div>
-                    <button onClick={() => handleDownload('csv')}
+                    {/* <button onClick={() => handleDownload('csv')}
                         className="inline-flex items-center gap-1.5 text-xs text-blue-600 font-semibold hover:text-blue-700 border border-blue-200 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition-colors">
                         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                         </svg>
                         Export
+                    </button> */}
+                    <button
+                        onClick={() => exportPDF(
+                            agentPerformance,
+                            { from: period, to: period }
+                        )}
+                        className="inline-flex items-center gap-1.5 text-xs text-red-600 font-semibold hover:text-red-700 border border-red-200 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg transition-colors"
+                    >
+                        📄 PDF Export
                     </button>
                 </div>
 
@@ -1028,6 +1177,15 @@ const Reports = () => {
                                 Download JSON
                             </>
                         )}
+                    </button>
+                    <button
+                        onClick={() => exportPDF(
+                            agentPerformance,
+                            { from: period, to: period }
+                        )}
+                        className="inline-flex items-center gap-2 bg-white/20 hover:bg-white/30 text-white text-sm font-semibold px-5 py-2.5 rounded-xl transition-all border border-white/30"
+                    >
+                        📄 PDF
                     </button>
                 </div>
             </div>

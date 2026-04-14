@@ -9,6 +9,7 @@ import ManagerSidebar from './ManagerSidebar';
 import HrSidebar from './HrSidebar';
 import EmployeeSidebar from './EmployeeSidebar';
 import Sidebar from './Sidebar';
+import FollowUpAlert from '../Common/FollowUpAlert';
 
 const getRoleSidebar = (role) => {
   if (['admin', 'super_admin'].includes(role)) return AdminSidebar;
@@ -105,7 +106,9 @@ const Layout = () => {
   }, [isConnected]);
 
   return (
+
     <div className="flex h-screen bg-gray-50 overflow-hidden">
+      <FollowUpAlert />
       {/* Toast Notification */}
       {toast && (
         <Toast

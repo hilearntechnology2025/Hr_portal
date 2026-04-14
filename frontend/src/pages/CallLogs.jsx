@@ -331,6 +331,8 @@ const CallLogs = () => {
     const headers = { Authorization: `Bearer ${token}` };
     const isAdmin = ['admin', 'super_admin'].includes(userRole);
     const canDelete = userRole === 'super_admin';
+    const canAddCalls = ['agent', 'team_leader'].includes(userRole);
+    const isManager = userRole === 'manager';
 
     const [logs, setLogs] = useState([]);
     const [stats, setStats] = useState(null);
@@ -361,6 +363,50 @@ const CallLogs = () => {
     const [selectedAgent, setSelectedAgent] = useState('');
 
     const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 3000); };
+
+    const downloadCSV = () => {
+        if (!logs || logs.length === 0) {
+            showToast('❌ No data to download');
+            return;
+        }
+
+        const headers = ['#', 'Agent', 'Customer Name', 'Phone', 'Type', 'Status', 'Duration', 'Date & Time', 'Disposition', 'Follow-up Date', 'Notes'];
+
+        const rows = logs.map((log, idx) => [
+            idx + 1,
+            log.agent?.name || '—',
+            log.customerName || '—',
+            log.customerNumber || '—',
+            log.callType || '—',
+            log.callStatus || '—',
+            log.durationSeconds
+                ? `${Math.floor(log.durationSeconds / 60)}m ${log.durationSeconds % 60}s`
+                : '0s',
+            log.calledAt
+                ? new Date(log.calledAt).toLocaleString('en-IN')
+                : '—',
+            log.disposition || '—',
+            log.followUpDate
+                ? new Date(log.followUpDate).toLocaleDateString('en-IN')
+                : '—',
+            (log.notes || '').replace(/,/g, ';'),
+        ]);
+
+        const csvContent = [headers, ...rows]
+            .map(row => row.map(cell => `"${cell}"`).join(','))
+            .join('\n');
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `call-logs-${selectedAgent ? `agent-${selectedAgent}-` : ''}${new Date().toISOString().split('T')[0]}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        showToast('✅ CSV downloaded successfully!');
+    };
 
     // Backend returns data.logs and data.pagination
     const fetchLogs = useCallback(async () => {
@@ -577,7 +623,7 @@ const CallLogs = () => {
                         {pagination.total} total calls
                     </p>
                 </div>
-                <div className="flex items-center gap-3">
+                {/* <div className="flex items-center gap-3">
                     <button onClick={() => setShowAdd(true)}
                         className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition-colors">
                         + Add Call
@@ -586,6 +632,26 @@ const CallLogs = () => {
                         className="flex items-center gap-2 px-5 py-2.5 border border-gray-200 hover:bg-gray-50 text-gray-700 text-sm font-semibold rounded-xl transition-colors">
                         📥 Bulk Import
                     </button>
+                </div> */}
+                <div className="flex items-center gap-3">
+                    {isManager && (
+                        <button onClick={downloadCSV}
+                            className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-xl transition-colors">
+                            ⬇️ Download CSV
+                        </button>
+                    )}
+                    {canAddCalls && (
+                        <button onClick={() => setShowAdd(true)}
+                            className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition-colors">
+                            + Add Call
+                        </button>
+                    )}
+                    {canAddCalls && (
+                        <button onClick={() => setShowImport(true)}
+                            className="flex items-center gap-2 px-5 py-2.5 border border-gray-200 hover:bg-gray-50 text-gray-700 text-sm font-semibold rounded-xl transition-colors">
+                            📥 Bulk Import
+                        </button>
+                    )}
                 </div>
             </div>
 

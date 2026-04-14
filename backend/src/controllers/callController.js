@@ -33,7 +33,7 @@ exports.getCallLogs = async (req, res) => {
         const userRole = req.user.role;
         const query = {};
 
-        
+
         if (["admin", "super_admin"].includes(userRole)) {
             if (req.query.agentId) query.agent = req.query.agentId;
             // koi filter nahi — sab dikhega
@@ -51,7 +51,7 @@ exports.getCallLogs = async (req, res) => {
                 query.agent = { $in: teamIds };
             }
         } else {
-            query.agent = req.user._id;  
+            query.agent = req.user._id;
         }
 
         if (search.trim()) {
@@ -95,8 +95,8 @@ exports.getCallLogs = async (req, res) => {
             calledAt: c.calledAt,
             notes: c.notes,
             agent: c.agent,
-            disposition: c.disposition || "",           
-            followUpDate: c.followUpDate || null,       
+            disposition: c.disposition || "",
+            followUpDate: c.followUpDate || null,
             followUpNotes: c.followUpNotes || "",
         }));
 
@@ -257,24 +257,24 @@ exports.getCallStats = async (req, res) => {
     try {
         const userRole = req.user.role;
         const userId = req.user._id;
-        
+
         let agentFilter = {};
-        
+
         // ── Role-based filter for stats ─────────────────────
         if (["admin", "super_admin"].includes(userRole)) {
-            
+
             if (req.query.agentId) {
                 agentFilter.agent = req.query.agentId;
             }
-            
-        } 
+
+        }
         else if (userRole === "manager") {
-            
+
             if (req.query.agentId) {
                 agentFilter.agent = req.query.agentId;
             } else {
-                
-                const teamMembers = await User.find({ 
+
+                const teamMembers = await User.find({
                     managerId: userId,
                     role: { $in: ["agent", "team_leader"] }
                 }).select("_id");
@@ -294,9 +294,9 @@ exports.getCallStats = async (req, res) => {
                     });
                 }
             }
-        } 
+        }
         else {
-            
+
             agentFilter.agent = userId;
         }
 
@@ -382,5 +382,98 @@ exports.bulkImportCalls = async (req, res) => {
     } catch (err) {
         console.error("bulkImport error:", err);
         res.status(500).json({ message: "Import failed" });
+    }
+};
+
+// ─────────────────────────────────────────────────────────
+// GET /api/calls/follow-ups  — agent ke pending follow-ups
+// ─────────────────────────────────────────────────────────
+exports.getPendingFollowUps = async (req, res) => {
+    try {
+        const now = new Date();
+        const calls = await CallLog.find({
+            agent: req.user._id,
+            followUpDate: { $lte: now },
+            disposition: "Follow-up",
+        })
+            .sort({ followUpDate: 1 })
+            .limit(20)
+            .lean();
+
+        res.json({ count: calls.length, followUps: calls });
+    } catch (err) {
+        console.error("getPendingFollowUps error:", err);
+        res.status(500).json({ message: "Failed to fetch follow-ups" });
+    }
+};
+// ─────────────────────────────────────────────────────────
+// GET /api/calls/leaderboard?period=weekly|monthly
+// ─────────────────────────────────────────────────────────
+exports.getLeaderboard = async (req, res) => {
+    try {
+        const { period = 'weekly' } = req.query;
+        const now = new Date();
+        let startDate;
+
+        if (period === 'weekly') {
+            startDate = new Date(now);
+            startDate.setDate(now.getDate() - 6);
+            startDate.setHours(0, 0, 0, 0);
+        } else {
+            // monthly = last 30 days
+            startDate = new Date(now);
+            startDate.setDate(now.getDate() - 29);
+            startDate.setHours(0, 0, 0, 0);
+        }
+
+        const agentUsers = await User.find({
+            role: { $in: ['agent', 'team_leader'] }
+        }).select('_id');
+        const agentIds = agentUsers.map(u => u._id);
+
+        const results = await CallLog.aggregate([
+            {
+                $match: {
+                    calledAt: { $gte: startDate },
+                    callStatus: "Connected",
+                    agent: { $in: agentIds }
+                }
+            },
+            {
+                $group: {
+                    _id: "$agent",
+                    totalCalls: { $sum: 1 },
+                    totalDuration: { $sum: "$durationSeconds" },
+                    salesDone: {
+                        $sum: { $cond: [{ $eq: ["$disposition", "Sale Done"] }, 1, 0] }
+                    }
+                }
+            },
+            { $sort: { totalCalls: -1 } },
+            { $limit: 10 },
+            {
+                $lookup: {
+                    from: "users",
+                    localField: "_id",
+                    foreignField: "_id",
+                    as: "agentInfo"
+                }
+            },
+            { $unwind: "$agentInfo" },
+            {
+                $project: {
+                    agentName: "$agentInfo.name",
+                    agentEmail: "$agentInfo.email",
+                    totalCalls: 1,
+                    totalDuration: 1,
+                    salesDone: 1
+                }
+            }
+        ]);
+
+        res.json({ period, startDate, leaderboard: results });
+    } catch (err) {
+        console.error("getLeaderboard error:", err);
+        res.status(500).json({ message: "Failed to fetch leaderboard" });
     }
 };
